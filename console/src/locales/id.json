@@ -2069,6 +2069,8 @@
     "webSearchApiKeyLabel": "Kunci API (opsional)",
     "webSearchQuotaHintBefore": "Gratis 100 panggilan/hari. Daftar di ",
     "webSearchQuotaHintAfter": " untuk 1.000/hari.",
+    "webSearchTavilyKeyHintBefore": "Opsional. Tanpa kunci, Tavily memakai mode keyless gratis. Dapatkan kunci di ",
+    "webSearchTavilyKeyHintAfter": " untuk memakai kuota Anda (401/429/432 otomatis kembali ke keyless).",
     "active": "aktif",
     "available": "Tersedia",
     "noEnabled": "Tidak ada alat yang diaktifkan",

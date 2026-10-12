@@ -169,15 +169,114 @@ async def test_tavily_provider_uses_keyless_header(
         del payload
         assert url == "https://api.tavily.com/search"
         assert headers["X-Tavily-Access-Mode"] == "keyless"
+        assert "Authorization" not in headers
         return {"results": [{"title": "T", "url": "u", "content": "c"}]}
 
     monkeypatch.setattr(
         "qwenpaw.agents.tools.websearch.tavily._post",
         fake_post,
     )
+    monkeypatch.setattr(
+        "qwenpaw.agents.tools.websearch.tavily._current_agent_tavily_key",
+        AsyncMock(return_value=""),
+    )
     provider = TavilyProvider()
     results = await provider.search("qwen")
     assert results == [{"title": "T", "url": "u", "content": "c"}]
+
+
+@pytest.mark.asyncio
+async def test_tavily_provider_uses_bearer_when_key_set(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    async def fake_post(url, headers, payload):
+        del url, payload
+        assert headers["Authorization"] == "Bearer tvly-test"
+        assert "X-Tavily-Access-Mode" not in headers
+        return {"results": [{"title": "A", "url": "u", "content": "c"}]}
+
+    monkeypatch.setattr(
+        "qwenpaw.agents.tools.websearch.tavily._post",
+        fake_post,
+    )
+    monkeypatch.setattr(
+        "qwenpaw.agents.tools.websearch.tavily._current_agent_tavily_key",
+        AsyncMock(return_value="tvly-test"),
+    )
+    provider = TavilyProvider()
+    assert await provider.search("qwen") == [
+        {"title": "A", "url": "u", "content": "c"},
+    ]
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("status", [401, 429, 432])
+async def test_tavily_provider_falls_back_to_keyless_on_quota_errors(
+    monkeypatch: pytest.MonkeyPatch,
+    status: int,
+) -> None:
+    import httpx
+
+    calls: list[dict] = []
+
+    async def fake_post(url, headers, payload):
+        del url, payload
+        calls.append(dict(headers))
+        if "Authorization" in headers:
+            request = httpx.Request("POST", "https://api.tavily.com/search")
+            response = httpx.Response(status, request=request)
+            raise httpx.HTTPStatusError(
+                f"HTTP {status}",
+                request=request,
+                response=response,
+            )
+        assert headers["X-Tavily-Access-Mode"] == "keyless"
+        return {"results": [{"title": "K", "url": "u", "content": "c"}]}
+
+    monkeypatch.setattr(
+        "qwenpaw.agents.tools.websearch.tavily._post",
+        fake_post,
+    )
+    monkeypatch.setattr(
+        "qwenpaw.agents.tools.websearch.tavily._current_agent_tavily_key",
+        AsyncMock(return_value="tvly-bad"),
+    )
+    provider = TavilyProvider()
+    results = await provider.search("qwen")
+    assert results == [{"title": "K", "url": "u", "content": "c"}]
+    assert len(calls) == 2
+    assert calls[0]["Authorization"] == "Bearer tvly-bad"
+    assert calls[1]["X-Tavily-Access-Mode"] == "keyless"
+
+
+@pytest.mark.asyncio
+async def test_tavily_provider_does_not_fallback_on_other_errors(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    import httpx
+
+    async def fake_post(url, headers, payload):
+        del url, payload
+        request = httpx.Request("POST", "https://api.tavily.com/search")
+        response = httpx.Response(500, request=request)
+        raise httpx.HTTPStatusError(
+            "HTTP 500",
+            request=request,
+            response=response,
+        )
+
+    monkeypatch.setattr(
+        "qwenpaw.agents.tools.websearch.tavily._post",
+        fake_post,
+    )
+    monkeypatch.setattr(
+        "qwenpaw.agents.tools.websearch.tavily._current_agent_tavily_key",
+        AsyncMock(return_value="tvly-bad"),
+    )
+    provider = TavilyProvider()
+    with pytest.raises(httpx.HTTPStatusError) as exc_info:
+        await provider.search("qwen")
+    assert exc_info.value.response.status_code == 500
 
 
 def test_format_search_results() -> None:

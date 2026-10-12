@@ -1,6 +1,6 @@
 import { SharedModal as Modal } from "@/components/interaction/SharedModal";
 import { useAutoSave } from "@/hooks/useAutoSave";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { X, ChevronDown } from "lucide-react";
 import { Spin, Typography } from "antd";
 import { Form, Input, Select } from "@agentscope-ai/design";
@@ -13,10 +13,11 @@ import type { ToolInfo } from "../../../api/modules/tools";
  *
  * Deliberately not driven by ``tool.config_fields`` like the generic
  * ``ToolConfigModal``: web_search only ever has two fixed fields
- * (provider select + api_key password), and the api_key field must hide
- * itself when provider is "tavily" (keyless backend). Keeping this as a
- * standalone component means the shared ``ToolConfigModal`` — used by all
- * plugin tools — is never touched by web_search-specific behavior.
+ * (provider select + api_key password). The api_key field is optional for
+ * every provider: tavily stays keyless when empty, anysearch may register
+ * anonymously. Keeping this as a standalone component means the shared
+ * ``ToolConfigModal`` — used by all plugin tools — is never touched by
+ * web_search-specific behavior.
  */
 export function WebSearchConfigModal({
   tool,
@@ -33,10 +34,18 @@ export function WebSearchConfigModal({
   const [loadingConfig, setLoadingConfig] = useState(false);
   const { t } = useTranslation();
   const providerValue = Form.useWatch("provider", form);
+  // Skip the mount/initialValue echo of the provider effect: the open
+  // effect already loaded the saved provider's credential. Re-fetch only
+  // when the user switches provider inside the modal.
+  const skipNextProviderFetch = useRef(true);
 
   useEffect(() => {
-    if (!visible) return;
+    if (!visible) {
+      skipNextProviderFetch.current = true;
+      return;
+    }
     form.resetFields();
+    skipNextProviderFetch.current = true;
     setLoadingConfig(true);
     let cancelled = false;
     api
@@ -60,10 +69,12 @@ export function WebSearchConfigModal({
   // (which would otherwise be treated as "clear the key" on save).
   useEffect(() => {
     if (!visible) return;
-    if (!providerValue || providerValue === "tavily") {
-      // Keyless provider: drop any leftover key from the form store so it
-      // cannot be submitted into the wrong provider's credential slot.
+    if (!providerValue) {
       form.setFieldValue("api_key", undefined);
+      return;
+    }
+    if (skipNextProviderFetch.current) {
+      skipNextProviderFetch.current = false;
       return;
     }
     let cancelled = false;
@@ -93,13 +104,15 @@ export function WebSearchConfigModal({
     } catch {
       return false;
     }
-    if (values.provider === "tavily") delete values.api_key;
     await onSave(values);
   });
 
   useEffect(() => {
     if (!loadingConfig && form.isFieldsTouched()) schedule();
   }, [loadingConfig, form, schedule]);
+
+  const isAnysearch = providerValue === "anysearch";
+  const isTavily = providerValue === "tavily" || !providerValue;
 
   return (
     <Modal
@@ -128,26 +141,40 @@ export function WebSearchConfigModal({
               <Select.Option value="anysearch">anysearch</Select.Option>
             </Select>
           </Form.Item>
-          {providerValue !== "tavily" && (
-            <>
-              <Form.Item name="api_key" label={t("tools.webSearchApiKeyLabel")}>
-                <Input.Password autoComplete="off" />
-              </Form.Item>
-              <Typography.Text
-                type="secondary"
-                style={{ fontSize: 12, lineHeight: "20px", display: "block" }}
+          <Form.Item name="api_key" label={t("tools.webSearchApiKeyLabel")}>
+            <Input.Password autoComplete="off" />
+          </Form.Item>
+          {isAnysearch && (
+            <Typography.Text
+              type="secondary"
+              style={{ fontSize: 12, lineHeight: "20px", display: "block" }}
+            >
+              {t("tools.webSearchQuotaHintBefore")}
+              <Typography.Link
+                href="https://anysearch.com"
+                target="_blank"
+                rel="noreferrer"
               >
-                {t("tools.webSearchQuotaHintBefore")}
-                <Typography.Link
-                  href="https://anysearch.com"
-                  target="_blank"
-                  rel="noreferrer"
-                >
-                  anysearch.com
-                </Typography.Link>
-                {t("tools.webSearchQuotaHintAfter")}
-              </Typography.Text>
-            </>
+                anysearch.com
+              </Typography.Link>
+              {t("tools.webSearchQuotaHintAfter")}
+            </Typography.Text>
+          )}
+          {isTavily && (
+            <Typography.Text
+              type="secondary"
+              style={{ fontSize: 12, lineHeight: "20px", display: "block" }}
+            >
+              {t("tools.webSearchTavilyKeyHintBefore")}
+              <Typography.Link
+                href="https://tavily.com"
+                target="_blank"
+                rel="noreferrer"
+              >
+                tavily.com
+              </Typography.Link>
+              {t("tools.webSearchTavilyKeyHintAfter")}
+            </Typography.Text>
           )}
         </Form>
       </Spin>

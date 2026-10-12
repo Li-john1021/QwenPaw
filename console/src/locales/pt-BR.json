@@ -3172,6 +3172,8 @@
     "webSearchApiKeyLabel": "Chave de API (opcional)",
     "webSearchQuotaHintBefore": "Grátis: 100 chamadas/dia. Registre-se em ",
     "webSearchQuotaHintAfter": " para 1.000/dia.",
+    "webSearchTavilyKeyHintBefore": "Opcional. Sem chave, o Tavily usa o modo keyless gratuito. Obtenha uma chave em ",
+    "webSearchTavilyKeyHintAfter": " para usar sua cota (falha 401/429/432 volta automaticamente ao keyless).",
     "active": "ativo(s)",
     "available": "Disponível",
     "noEnabled": "Nenhuma ferramenta ativada",

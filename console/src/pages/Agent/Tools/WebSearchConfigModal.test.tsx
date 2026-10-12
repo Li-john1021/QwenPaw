@@ -95,17 +95,24 @@ describe("WebSearchConfigModal", () => {
     expect(passwordInput()).toHaveValue("***masked***");
   });
 
-  it("hides the api_key field and hint while provider is tavily (default)", async () => {
+  it("shows the optional api_key field and tavily hint while provider is tavily", async () => {
     hoisted.getToolConfig.mockResolvedValueOnce({});
     renderModal();
 
     await waitFor(() => {
       expect(selectedProvider()).toBe("tavily");
     });
-    expect(passwordInput()).toBeNull();
+    expect(passwordInput()).not.toBeNull();
     expect(
-      screen.queryByText("tools.webSearchQuotaHintBefore"),
-    ).not.toBeInTheDocument();
+      screen.getAllByText(
+        (_, el) =>
+          el?.textContent?.includes("tools.webSearchTavilyKeyHintBefore") ??
+          false,
+      ).length,
+    ).toBeGreaterThan(0);
+    const link = screen.getByRole("link", { name: "tavily.com" });
+    expect(link).toHaveAttribute("href", "https://tavily.com");
+    expect(link).toHaveAttribute("target", "_blank");
     expect(
       screen.queryByRole("link", { name: "anysearch.com" }),
     ).not.toBeInTheDocument();
@@ -199,16 +206,42 @@ describe("WebSearchConfigModal", () => {
       });
     });
   });
+
+  it("saves a tavily api_key into the tavily credential slot", async () => {
+    hoisted.getToolConfig.mockResolvedValueOnce({});
+    const onSave = vi.fn().mockResolvedValue(undefined);
+    renderModal(onSave);
+
+    await waitFor(() => {
+      expect(selectedProvider()).toBe("tavily");
+    });
+    await waitFor(() => expect(passwordInput()).not.toBeNull());
+    await waitFor(() => expect(passwordInput()).not.toBeDisabled());
+    fireEvent.change(passwordInput()!, { target: { value: "tvly-new" } });
+    fireEvent.click(screen.getByRole("button", { name: "Close" }));
+
+    await waitFor(() => {
+      expect(onSave).toHaveBeenCalledWith({
+        provider: "tavily",
+        api_key: "tvly-new",
+      });
+    });
+  });
 });
 
-describe("WebSearchConfigModal keyless-provider guard", () => {
-  it("drops the leftover api_key when switching back to tavily and saving", async () => {
+describe("WebSearchConfigModal provider-slot isolation", () => {
+  it("loads the tavily credential slot when switching back from anysearch", async () => {
     hoisted.getToolConfig
       .mockResolvedValueOnce({}) // open: saved config (tavily)
       .mockResolvedValueOnce({
         // switch to anysearch: its own credential slot
         provider: "anysearch",
         api_key: "***as_sk_restored***",
+      })
+      .mockResolvedValueOnce({
+        // switch back to tavily: its own credential slot
+        provider: "tavily",
+        api_key: "***tvly_restored***",
       });
     const onSave = vi.fn().mockResolvedValue(undefined);
     renderModal(onSave);
@@ -222,12 +255,23 @@ describe("WebSearchConfigModal keyless-provider guard", () => {
       expect(passwordInput()).toHaveValue("***as_sk_restored***");
     });
 
-    // Back to tavily: the key must not be submitted into its slot.
     await switchProvider("tavily");
+    await waitFor(() => {
+      expect(passwordInput()).toHaveValue("***tvly_restored***");
+    });
+    await waitFor(() => {
+      expect(hoisted.getToolConfig).toHaveBeenLastCalledWith("web_search", {
+        provider: "tavily",
+      });
+    });
+
     fireEvent.click(screen.getByRole("button", { name: "Close" }));
 
     await waitFor(() => {
-      expect(onSave).toHaveBeenCalledWith({ provider: "tavily" });
+      expect(onSave).toHaveBeenCalledWith({
+        provider: "tavily",
+        api_key: "***tvly_restored***",
+      });
     });
   });
 });
