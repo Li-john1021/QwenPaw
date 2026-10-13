@@ -87,8 +87,7 @@ export function WebSearchConfigModal({
       .then((config) => {
         if (gen !== fetchGen.current) return;
         const provider =
-          (typeof config?.provider === "string" && config.provider) ||
-          "tavily";
+          (typeof config?.provider === "string" && config.provider) || "tavily";
         form.setFieldsValue({ ...(config || {}), provider });
         setLoadState({ status: "ready", provider });
       })
@@ -180,7 +179,10 @@ export function WebSearchConfigModal({
             </Select>
           </Form.Item>
           <Form.Item name="api_key" label={t("tools.webSearchApiKeyLabel")}>
-            <Input.Password autoComplete="off" disabled={isLoading || isError} />
+            <Input.Password
+              autoComplete="off"
+              disabled={isLoading || isError}
+            />
           </Form.Item>
           {isError && (
             <Alert
