@@ -6,6 +6,7 @@ _strip_media_blocks_from_memory (top-level media removal, nested
 tool_result output filtering, empty-content placeholder insertion), plus
 request-only recovery from provider media-payload rejections.
 """
+
 # pylint: disable=protected-access,redefined-outer-name,unused-argument
 from __future__ import annotations
 
@@ -26,7 +27,6 @@ from qwenpaw.agents.react_agent import QwenPawAgent
 from qwenpaw.constant import MEDIA_UNSUPPORTED_PLACEHOLDER
 from qwenpaw.loop.gates import StopAction, StopHandlerResult
 from qwenpaw.providers.model_capability_cache import get_capability_cache
-
 
 _DEEPSEEK_UNSUPPORTED_IMAGE_ERROR = (
     "Error code: 400 - {'error': {'message': 'Failed to deserialize the "
@@ -324,6 +324,18 @@ class TestStripMediaBlocksFromMemory:
         ("Error code: 400 - invalid image data in messages[3].image[0]", True),
         ("Error code: 400 - failed to decode the audio payload", True),
         ("Error code: 400 - multiple image inputs are not supported", True),
+        (
+            "Error code: 400 - {'error': {'message': 'At most 0 image(s) "
+            "may be provided in one prompt. (parameter=image)', "
+            "'param': 'image', 'code': 400}}",
+            True,
+        ),
+        (
+            "Error code: 400 - {'error': {'message': 'At most 0 audio(s) "
+            "may be provided in one prompt. (parameter=audio)', "
+            "'param': 'audio', 'code': 400}}",
+            True,
+        ),
         (_MODEL_CAPABILITY_ERROR, False),
         (
             "Error code: 400 - image is sensitive: invalid image content",
