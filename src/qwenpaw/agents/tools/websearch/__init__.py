@@ -13,7 +13,7 @@ from .anysearch import (
 )
 from .base import SearchProvider, format_search_results
 from .factory import get_search_provider
-from .tavily import TavilyProvider, _current_agent_tavily_key
+from .tavily import TavilyProvider
 
 __all__ = [
     "SearchProvider",
@@ -23,5 +23,4 @@ __all__ = [
     "format_search_results",
     "_current_agent_anysearch_key",
     "_parse_auto_registered_credentials",
-    "_current_agent_tavily_key",
 ]

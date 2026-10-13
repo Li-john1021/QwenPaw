@@ -6,25 +6,16 @@
 from __future__ import annotations
 
 import logging
-import threading
 
 import httpx
 
-from ....config.context import get_current_workspace_dir
-from ....drivers.credentials.store import AsyncCredentialStore
-from ....drivers.errors import CredentialNotFoundError
 from .base import SearchProvider, _post
+from .credentials import read_optional_api_key
 
 logger = logging.getLogger(__name__)
 
 _CREDENTIAL_REF = "tool/web_search/tavily"
 _FALLBACK_STATUS_CODES = frozenset({401, 429, 432})
-
-# mtime-keyed cache for the per-agent Tavily key: the credential YAML is
-# re-read (and re-decrypted) only when the file changes, mirroring the
-# AnySearch key cache.
-_key_cache: dict[str, tuple[float, str]] = {}
-_key_cache_lock = threading.RLock()
 
 
 async def _current_agent_tavily_key() -> str:
@@ -34,28 +25,7 @@ async def _current_agent_tavily_key() -> str:
     Empty string means "no key configured" — the provider then stays on
     the keyless default path.
     """
-    workspace_dir = get_current_workspace_dir()
-    if not workspace_dir:
-        return ""
-    path = workspace_dir / "credentials.yaml"
-    try:
-        current_mtime = path.stat().st_mtime
-    except OSError:
-        current_mtime = 0.0
-    cache_key = str(path)
-    with _key_cache_lock:
-        cached = _key_cache.get(cache_key)
-        if cached is not None and cached[0] == current_mtime:
-            return cached[1]
-    store = AsyncCredentialStore(path)
-    try:
-        record = await store.get(_CREDENTIAL_REF)
-        key = str(record.secrets.get("api_key") or "")
-    except CredentialNotFoundError:
-        key = ""
-    with _key_cache_lock:
-        _key_cache[cache_key] = (current_mtime, key)
-    return key
+    return (await read_optional_api_key(_CREDENTIAL_REF)) or ""
 
 
 class TavilyProvider(SearchProvider):
@@ -113,4 +83,4 @@ class TavilyProvider(SearchProvider):
         return list(data.get("results") or [])
 
 
-__all__ = ["TavilyProvider", "_current_agent_tavily_key"]
+__all__ = ["TavilyProvider"]

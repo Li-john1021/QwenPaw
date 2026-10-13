@@ -2913,8 +2913,8 @@
     "webSearchApiKeyLabel": "APIキー（任意）",
     "webSearchQuotaHintBefore": "未登録時は1日100回まで。",
     "webSearchQuotaHintAfter": "で登録すると1日1,000回無料に。",
-    "webSearchTavilyKeyHintBefore": "任意。未設定時は無料のキーレスモードで動作します。キーは ",
-    "webSearchTavilyKeyHintAfter": " で取得（401/429/432 時はキーレスに自動フォールバック）。",
+    "webSearchTavilyKeyHintBefore": "任意。未設定または認証に失敗した場合は無料検索を使用します。キーは ",
+    "webSearchTavilyKeyHintAfter": " で取得。",
     "active": "個が有効",
     "available": "利用可能",
     "noEnabled": "有効なツールはありません",
@@ -3070,7 +3070,8 @@
       "runtime": "実行と自動化",
       "migration": "アプリの移行",
       "other": "未分類"
-    }
+    },
+    "webSearchConfigLoadError": "このプロバイダーの認証情報を読み込めませんでした。保存前に再試行してください。"
   },
   "modelConfig": {
     "promptTitle": "LLMモデルが必要です — 設定後にChatページで選択",

@@ -256,7 +256,7 @@ async def test_tavily_provider_does_not_fallback_on_other_errors(
     import httpx
 
     async def fake_post(url, headers, payload):
-        del url, payload
+        del url, headers, payload
         request = httpx.Request("POST", "https://api.tavily.com/search")
         response = httpx.Response(500, request=request)
         raise httpx.HTTPStatusError(
@@ -290,3 +290,49 @@ def test_format_search_results() -> None:
     assert "URL: https://a.com" in text
     assert "[2] B" in text
     assert format_search_results([]) == "No results found."
+
+
+@pytest.mark.asyncio
+async def test_read_optional_api_key_returns_none_without_workspace(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from qwenpaw.agents.tools.websearch.credentials import (
+        read_optional_api_key,
+    )
+
+    monkeypatch.setattr(
+        "qwenpaw.agents.tools.websearch.credentials.get_current_workspace_dir",
+        lambda: None,
+    )
+    assert await read_optional_api_key("tool/web_search/tavily") is None
+
+
+@pytest.mark.asyncio
+async def test_read_optional_api_key_reads_via_sync_store(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path,
+) -> None:
+    from qwenpaw.agents.tools.websearch.credentials import (
+        read_optional_api_key,
+    )
+    from qwenpaw.drivers.credentials.store import AsyncCredentialStore
+    from qwenpaw.drivers.credentials.types import CredentialRecord
+
+    cred_path = tmp_path / "credentials.yaml"
+    store = AsyncCredentialStore(cred_path)
+    await store.put(
+        CredentialRecord(
+            ref="tool/web_search/tavily",
+            kind="static",
+            secrets={"api_key": "tvly-from-store"},
+        ),
+    )
+
+    monkeypatch.setattr(
+        "qwenpaw.agents.tools.websearch.credentials.get_current_workspace_dir",
+        lambda: tmp_path,
+    )
+    assert await read_optional_api_key("tool/web_search/tavily") == (
+        "tvly-from-store"
+    )
+    assert await read_optional_api_key("tool/web_search/missing") is None

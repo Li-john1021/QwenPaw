@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 
 const hoisted = vi.hoisted(() => ({
@@ -81,6 +81,10 @@ async function switchProvider(provider: string) {
 }
 
 describe("WebSearchConfigModal", () => {
+  beforeEach(() => {
+    hoisted.getToolConfig.mockReset();
+    hoisted.getToolConfig.mockResolvedValue({});
+  });
   it("fetches saved config on open and backfills provider + masked key", async () => {
     hoisted.getToolConfig.mockResolvedValueOnce({
       provider: "anysearch",
@@ -230,6 +234,11 @@ describe("WebSearchConfigModal", () => {
 });
 
 describe("WebSearchConfigModal provider-slot isolation", () => {
+  beforeEach(() => {
+    hoisted.getToolConfig.mockReset();
+    hoisted.getToolConfig.mockResolvedValue({});
+  });
+
   it("loads the tavily credential slot when switching back from anysearch", async () => {
     hoisted.getToolConfig
       .mockResolvedValueOnce({}) // open: saved config (tavily)
@@ -273,5 +282,53 @@ describe("WebSearchConfigModal provider-slot isolation", () => {
         api_key: "***tvly_restored***",
       });
     });
+  });
+});
+
+describe("WebSearchConfigModal failed provider switch", () => {
+  beforeEach(() => {
+    hoisted.getToolConfig.mockReset();
+    hoisted.getToolConfig.mockResolvedValue({});
+  });
+
+  it("does not save the previous provider key when the new slot fails to load", async () => {
+    hoisted.getToolConfig
+      .mockResolvedValueOnce({
+        provider: "tavily",
+        api_key: "tvly-private-draft",
+      })
+      .mockRejectedValueOnce(new Error("network"));
+    const onSave = vi.fn().mockResolvedValue(undefined);
+    const onClose = vi.fn();
+    render(
+      <WebSearchConfigModal
+        tool={tool}
+        visible
+        onClose={onClose}
+        onSave={onSave}
+      />,
+    );
+
+    await waitFor(() => {
+      expect(selectedProvider()).toBe("tavily");
+    });
+    await waitFor(() => {
+      expect(passwordInput()).toHaveValue("tvly-private-draft");
+    });
+
+    await switchProvider("anysearch");
+
+    await waitFor(() => {
+      expect(
+        screen.getByText("tools.webSearchConfigLoadError"),
+      ).toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: "Close" }));
+
+    await waitFor(() => {
+      expect(onClose).toHaveBeenCalled();
+    });
+    expect(onSave).not.toHaveBeenCalled();
   });
 });

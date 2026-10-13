@@ -2928,8 +2928,8 @@
     "webSearchApiKeyLabel": "API-ключ (необязательно)",
     "webSearchQuotaHintBefore": "Без регистрации: 100 вызовов/день. На ",
     "webSearchQuotaHintAfter": ": 1000/день.",
-    "webSearchTavilyKeyHintBefore": "Необязательно. Без ключа Tavily работает в бесплатном keyless-режиме. Ключ: ",
-    "webSearchTavilyKeyHintAfter": " (при 401/429/432 — автоматический откат на keyless).",
+    "webSearchTavilyKeyHintBefore": "Необязательно. Если ключ не задан или аутентификация не удалась, используется бесплатный поиск. Ключ: ",
+    "webSearchTavilyKeyHintAfter": ".",
     "active": "активно",
     "available": "Доступно",
     "noEnabled": "Нет включённых инструментов",
@@ -3085,7 +3085,8 @@
       "runtime": "Выполнение и автоматизация",
       "migration": "Миграция приложений",
       "other": "Без категории"
-    }
+    },
+    "webSearchConfigLoadError": "Не удалось загрузить учётные данные провайдера. Повторите попытку перед сохранением."
   },
   "modelConfig": {
     "promptTitle": "Требуется LLM-модель — выберите в Chat после настройки",
