@@ -332,3 +332,53 @@ describe("WebSearchConfigModal failed provider switch", () => {
     expect(onSave).not.toHaveBeenCalled();
   });
 });
+
+describe("WebSearchConfigModal initial-load failure", () => {
+  beforeEach(() => {
+    hoisted.getToolConfig.mockReset();
+    hoisted.getToolConfig.mockResolvedValue({});
+  });
+
+  it("retries the saved-config request instead of forcing the tavily slot", async () => {
+    const onSave = vi.fn().mockResolvedValue(undefined);
+    hoisted.getToolConfig
+      .mockRejectedValueOnce(new Error("network"))
+      .mockResolvedValueOnce({
+        provider: "anysearch",
+        api_key: "***as_sk_restored***",
+      });
+
+    render(
+      <WebSearchConfigModal
+        tool={tool}
+        visible
+        onClose={vi.fn()}
+        onSave={onSave}
+      />,
+    );
+
+    await waitFor(() => {
+      expect(
+        screen.getByText("tools.webSearchConfigLoadError"),
+      ).toBeInTheDocument();
+    });
+    expect(hoisted.getToolConfig).toHaveBeenCalledWith("web_search");
+    expect(hoisted.getToolConfig).not.toHaveBeenCalledWith("web_search", {
+      provider: "tavily",
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: "common.retry" }));
+
+    await waitFor(() => {
+      expect(selectedProvider()).toBe("anysearch");
+    });
+    expect(passwordInput()).toHaveValue("***as_sk_restored***");
+    // Retry must call the initial saved-config endpoint again (no provider).
+    expect(
+      hoisted.getToolConfig.mock.calls.filter(
+        (args) => args.length === 1 && args[0] === "web_search",
+      ),
+    ).toHaveLength(2);
+    expect(onSave).not.toHaveBeenCalled();
+  });
+});

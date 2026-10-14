@@ -29,7 +29,9 @@ import type { ToolInfo } from "../../../api/modules/tools";
 type ConfigLoadState =
   | { status: "loading"; provider: string | null }
   | { status: "ready"; provider: string }
-  | { status: "error"; provider: string };
+  // provider === null means the initial (saved-config) fetch failed;
+  // retry must re-run that request, not load a hardcoded provider slot.
+  | { status: "error"; provider: string | null };
 
 export function WebSearchConfigModal({
   tool,
@@ -51,6 +53,29 @@ export function WebSearchConfigModal({
   });
   // Bump to ignore stale responses when the modal closes or a newer fetch starts.
   const fetchGen = useRef(0);
+
+  const loadInitialConfig = useCallback(() => {
+    const gen = ++fetchGen.current;
+    setLoadState({ status: "loading", provider: null });
+    api
+      .getToolConfig(tool.name)
+      .then((config) => {
+        if (gen !== fetchGen.current) return;
+        const provider =
+          (typeof config?.provider === "string" && config.provider) || "tavily";
+        form.setFieldsValue({ ...(config || {}), provider });
+        setLoadState({ status: "ready", provider });
+      })
+      .catch(() => {
+        if (gen !== fetchGen.current) return;
+        // Do not force provider to "tavily" here — that would make Retry
+        // load the tavily slot and let auto-save overwrite a saved
+        // anysearch (or other) selection. Leave the form provider alone
+        // until a successful load recovers the saved config.
+        form.setFieldValue("api_key", undefined);
+        setLoadState({ status: "error", provider: null });
+      });
+  }, [tool.name, form]);
 
   const loadForProvider = useCallback(
     (provider: string) => {
@@ -80,27 +105,11 @@ export function WebSearchConfigModal({
       return;
     }
     form.resetFields();
-    const gen = ++fetchGen.current;
-    setLoadState({ status: "loading", provider: null });
-    api
-      .getToolConfig(tool.name)
-      .then((config) => {
-        if (gen !== fetchGen.current) return;
-        const provider =
-          (typeof config?.provider === "string" && config.provider) || "tavily";
-        form.setFieldsValue({ ...(config || {}), provider });
-        setLoadState({ status: "ready", provider });
-      })
-      .catch(() => {
-        if (gen !== fetchGen.current) return;
-        form.setFieldValue("provider", "tavily");
-        form.setFieldValue("api_key", undefined);
-        setLoadState({ status: "error", provider: "tavily" });
-      });
+    loadInitialConfig();
     return () => {
       fetchGen.current += 1;
     };
-  }, [visible, tool.name, form]);
+  }, [visible, tool.name, form, loadInitialConfig]);
 
   // Provider switch: fetch that provider's slot once selection diverges
   // from the last successful/in-flight/error target.
@@ -109,6 +118,11 @@ export function WebSearchConfigModal({
     if (!providerValue) return;
     // Initial open owns the first fetch (provider still unknown).
     if (loadState.status === "loading" && loadState.provider === null) {
+      return;
+    }
+    // Initial-load failure: wait for explicit retry of the saved-config
+    // request; do not treat the form default as a provider switch.
+    if (loadState.status === "error" && loadState.provider === null) {
       return;
     }
     // Already loading / ready / error for this provider — no auto-refetch
@@ -195,7 +209,13 @@ export function WebSearchConfigModal({
                   size="small"
                   type="link"
                   onClick={() => {
-                    if (loadState.status === "error") {
+                    if (loadState.status !== "error") return;
+                    // Initial failure: recover saved provider via the
+                    // original config request. Provider-switch failure:
+                    // reload that provider's credential slot.
+                    if (loadState.provider === null) {
+                      loadInitialConfig();
+                    } else {
                       loadForProvider(loadState.provider);
                     }
                   }}
