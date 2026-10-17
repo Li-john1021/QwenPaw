@@ -45,6 +45,18 @@ _LM_STUDIO_IMAGE_LIMIT_ERROR = (
     "'param': 'image', 'code': 400}}"
 )
 
+_LM_STUDIO_VIDEO_LIMIT_ERROR = (
+    "Error code: 400 - {'error': {'message': 'At most 0 video(s) may be "
+    "provided in one prompt. (parameter=video)', 'type': 'BadRequestError', "
+    "'param': 'video', 'code': 400}}"
+)
+
+_ENDPOINT_MEDIA_DISABLED_ERROR = (
+    "Error code: 400 - {'error': {'type': 'server_error', 'message': "
+    "'Upstream request failed: [unsupported_request] Message content "
+    "supports text content only. Images, audio and files are not enabled.'}}"
+)
+
 
 class _FakeAPIError(Exception):
     """Provider error that exposes a structured HTTP status code."""
@@ -296,12 +308,8 @@ async def test_audio_modal_error_strips_audio_and_retries_once(
             True,
         ),
         (_LM_STUDIO_IMAGE_LIMIT_ERROR, False),
-        (
-            "Error code: 400 - {'error': {'message': 'At most 0 video(s) "
-            "may be provided in one prompt. (parameter=video)', "
-            "'param': 'video', 'code': 400}}",
-            False,
-        ),
+        (_LM_STUDIO_VIDEO_LIMIT_ERROR, False),
+        (_ENDPOINT_MEDIA_DISABLED_ERROR, False),
         (
             "Error code: 400 - This model's maximum context length is "
             "8192 tokens.",
@@ -361,3 +369,21 @@ def test_lmstudio_audio_limit_does_not_learn_global_media_rejection() -> None:
     assert QwenPawAgent._is_audio_fallback_error(image_exc) is False
     assert QwenPawAgent._is_media_payload_rejection_error(image_exc) is True
     assert QwenPawAgent._is_global_media_capability_error(image_exc) is False
+
+
+@pytest.mark.parametrize(
+    "error",
+    [
+        _LM_STUDIO_VIDEO_LIMIT_ERROR,
+        _LM_STUDIO_IMAGE_LIMIT_ERROR,
+        _ENDPOINT_MEDIA_DISABLED_ERROR,
+    ],
+    ids=["at-most-video", "at-most-image", "are-not-enabled"],
+)
+def test_media_at_most_and_disabled_stay_off_audio_path(error: str) -> None:
+    """Video/image at-most and are-not-enabled use media payload, not audio."""
+    exc = RuntimeError(error)
+    assert QwenPawAgent._is_audio_fallback_error(exc) is False
+    assert QwenPawAgent._is_media_payload_rejection_error(exc) is True
+    assert QwenPawAgent._is_explicit_media_capability_error(exc) is False
+    assert QwenPawAgent._is_global_media_capability_error(exc) is False

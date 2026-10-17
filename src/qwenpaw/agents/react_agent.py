@@ -200,6 +200,11 @@ _MEDIA_PAYLOAD_REJECTION_SIGNALS = (
     "image too large",
     "image is too large",
     "image dimensions",
+    # OpenAI-compatible aggregator: endpoint has media disabled while
+    # the model is still declared multimodal. Request-scoped strip only —
+    # do not teach model-wide rejects_media (see #8171 / #8290).
+    "are not enabled",
+    "supports text content only",
 )
 
 # A payload rejection only counts when the provider actually names the media
@@ -1310,7 +1315,9 @@ class QwenPawAgent(CodingModeMixin, Agent):
         resolution or a video duration the provider refuses, an
         ``at most N <modal>(s) may be provided in one prompt`` cap — plus
         asset-level failures: undecodable bytes, an unsupported container,
-        a declared MIME type the provider cannot render. None of them says
+        a declared MIME type the provider cannot render, and endpoint
+        wordings such as ``supports text content only`` / ``are not
+        enabled`` when the request still carries media. None of them says
         anything about the model, so recovery is a media-free retry, never
         a cached model-wide ``rejects_media`` capability loss.
 
