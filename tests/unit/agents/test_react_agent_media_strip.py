@@ -381,8 +381,7 @@ def test_media_payload_rejection_classifier(
 ) -> None:
     """Classify payload failures without matching capability errors."""
     assert (
-        QwenPawAgent._is_media_payload_rejection_error(RuntimeError(error))
-        is expected
+        QwenPawAgent._is_media_payload_rejection_error(RuntimeError(error)) is expected
     )
 
 
@@ -572,14 +571,23 @@ async def test_media_at_most_and_disabled_use_media_strip_path(
         assert agent.formatter._qwenpaw_force_strip_media is False
         assert agent.formatter._qwenpaw_force_strip_audio is False
         # Routing invariants for the expansion promised on #8171.
-        assert QwenPawAgent._is_audio_fallback_error(
-            RuntimeError(provider_error),
-        ) is False
-        assert QwenPawAgent._is_media_payload_rejection_error(
-            RuntimeError(provider_error),
-        ) is True
-        assert QwenPawAgent._is_explicit_media_capability_error(
-            RuntimeError(provider_error),
-        ) is False
+        assert (
+            QwenPawAgent._is_audio_fallback_error(
+                RuntimeError(provider_error),
+            )
+            is False
+        )
+        assert (
+            QwenPawAgent._is_media_payload_rejection_error(
+                RuntimeError(provider_error),
+            )
+            is True
+        )
+        assert (
+            QwenPawAgent._is_explicit_media_capability_error(
+                RuntimeError(provider_error),
+            )
+            is False
+        )
     finally:
         cache.clear()
