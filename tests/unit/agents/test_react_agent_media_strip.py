@@ -381,7 +381,8 @@ def test_media_payload_rejection_classifier(
 ) -> None:
     """Classify payload failures without matching capability errors."""
     assert (
-        QwenPawAgent._is_media_payload_rejection_error(RuntimeError(error)) is expected
+        QwenPawAgent._is_media_payload_rejection_error(RuntimeError(error))
+        is expected
     )
 
 
