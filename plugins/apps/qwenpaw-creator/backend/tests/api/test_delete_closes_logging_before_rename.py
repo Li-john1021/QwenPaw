@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+# pylint: disable=protected-access
 """DELETE must drop the per-project log handle before renaming the tree.
 
 On Windows an open ``creator.log`` inside the project directory makes
