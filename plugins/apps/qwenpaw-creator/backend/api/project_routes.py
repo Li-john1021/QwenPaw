@@ -563,6 +563,10 @@ async def delete_project(
         pass
     except (ProjectIntegrityError, ProjectStoreError) as exc:
         raise StorageIntegrityError(str(exc)) from exc
+    # Cancellation only signals workers; a late project-scoped emit can
+    # reopen the log between the pre-delete close and rename. Drop that
+    # handler again so deleted projects do not keep an open target.
+    close_creator_project_logging(project_id)
     return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 

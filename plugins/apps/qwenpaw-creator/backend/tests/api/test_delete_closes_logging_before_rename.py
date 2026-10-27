@@ -91,3 +91,9 @@ def test_delete_closes_logging_before_rename(
 
     assert deleted.status_code == 204, deleted.text
     assert order.index("close_logging") < order.index("replace")
+    # Post-delete close must remain: a worker can reopen the project log
+    # between the pre-delete close and rename.
+    assert order.count("close_logging") >= 2
+    assert order.index("replace") < (
+        len(order) - 1 - order[::-1].index("close_logging")
+    )
