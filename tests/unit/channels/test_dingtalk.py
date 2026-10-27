@@ -4028,7 +4028,7 @@ class TestOnEventMessageCompletedWebhookFallback:
             mock_invalidate.assert_awaited_once_with("dingtalk:sw:test")
             mock_fallback.assert_awaited_once()
             assert mock_fallback.await_args.args[0].endswith(
-                "Final answer after a long task"
+                "Final answer after a long task",
             )
             mock_media.assert_not_awaited()
 
